@@ -593,8 +593,8 @@ public class V8Array extends V8Object {
          * @see com.eclipsesource.v8.V8Array#twin()
          */
         @Override
-        public Undefined twin() {
-            return (Undefined) super.twin();
+        public V8Array.Undefined twin() {
+            return (V8Array.Undefined) super.twin();
         }
 
         /*

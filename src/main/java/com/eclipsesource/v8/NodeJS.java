@@ -34,7 +34,7 @@ public class NodeJS {
     private V8Function require;
 
     /**
-     * Creates a NodeJS Runtime
+     * Creates a NodeJS Runtime in new V8 runtime with alias {@link #GLOBAL}
      *
      * @return The NodeJS runtime.
      *
@@ -42,11 +42,55 @@ public class NodeJS {
      * been compiled for your platform.
      */
     public static NodeJS createNodeJS() {
-        return createNodeJS(null);
+        return createNodeJS(GLOBAL, null);
     }
 
     /**
-     * Creates a NodeJS runtime and executes a JS Script
+     * Creates a NodeJS Runtime in existing V8 runtime {@param v8}
+     *
+     * May throw an UnsupportedOperationException if node.js integration has not
+     * been compiled for your platform.
+     */
+    public static NodeJS createNodeJS(V8 v8) {
+        return createNodeJS(v8, null);
+    }
+
+    /**
+     * Creates a NodeJS Runtime in new V8 runtime with alias {@link #GLOBAL}
+     * and executes {@param file}
+     *
+     * May throw an UnsupportedOperationException if node.js integration has not
+     * been compiled for your platform.
+     */
+    public static NodeJS createNodeJS(final File file) {
+        return createNodeJS(GLOBAL, file);
+    }
+
+    /**
+     * Creates a NodeJS Runtime in new V8 runtime with alias {@param envName}
+     *
+     * May throw an UnsupportedOperationException if node.js integration has not
+     * been compiled for your platform.
+     */
+    public static NodeJS createNodeJS(String envName) {
+        V8 v8 = V8.createV8Runtime(envName);
+        return createNodeJS(v8, null);
+    }
+
+    /**
+     * Creates a NodeJS Runtime in new V8 runtime with alias {@param envName}
+     * and executes {@param file}
+     *
+     * May throw an UnsupportedOperationException if node.js integration has not
+     * been compiled for your platform.
+     */
+    public static NodeJS createNodeJS(String envName, File file) {
+        V8 v8 = V8.createV8Runtime(envName);
+        return createNodeJS(v8, file);
+    }
+
+    /**
+     * Creates a NodeJS runtime in existing V8 {@param v8} and executes a JS Script {@param file}
      *
      * @param file The JavaScript to execute or null for no script.
      * @return The NodeJS runtime.
@@ -54,8 +98,7 @@ public class NodeJS {
      * May throw an UnsupportedOperationException if node.js integration has not
      * been compiled for your platform.
      */
-    public static NodeJS createNodeJS(final File file) {
-        V8 v8 = V8.createV8Runtime(GLOBAL);
+    public static NodeJS createNodeJS(V8 v8, final File file) {
         final NodeJS node = new NodeJS(v8);
         v8.registerJavaMethod(new JavaVoidCallback() {
 
@@ -110,10 +153,10 @@ public class NodeJS {
      */
     public void release() {
         v8.checkThread();
-        if (!require.isReleased()) {
+        if (require != null && !require.isReleased()) {
             require.release();
         }
-        if (!v8.isReleased()) {
+        if (v8 != null && !v8.isReleased()) {
             v8.release();
         }
     }
@@ -198,6 +241,10 @@ public class NodeJS {
 
     private void init(final V8Function require) {
         this.require = require;
+    }
+
+    public V8Function getRequire() {
+        return require;
     }
 
     private static File createTemporaryScriptFile(final String script, final String name) throws IOException {
