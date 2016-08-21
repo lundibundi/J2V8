@@ -1,6 +1,8 @@
 /bin/
 /target/
 /obj/
+/libs
+/node
 build/
 .gradle
 .DS_Store

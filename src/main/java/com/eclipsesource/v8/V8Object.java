@@ -11,6 +11,8 @@
 package com.eclipsesource.v8;
 
 import java.lang.reflect.Method;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * The concrete class for all V8 Objects. V8Objects are
@@ -28,6 +30,11 @@ import java.lang.reflect.Method;
 public class V8Object extends V8Value {
 
     /**
+     * Contains a list of all registered functions for this Object
+     */
+    private List<Long> functionIds;
+
+    /**
      * Create a new V8Object and associate it with a runtime.
      * Once created, it must be released.
      *
@@ -42,6 +49,7 @@ public class V8Object extends V8Value {
         if (v8 != null) {
             this.v8.checkThread();
             initialize(this.v8.getV8RuntimePtr(), data);
+            functionIds = new LinkedList<Long>();
         }
     }
 
@@ -62,6 +70,12 @@ public class V8Object extends V8Value {
     public V8Object twin() {
         return (V8Object) super.twin();
     }
+
+//    @Override
+//    public void release() {
+//        super.release();
+//        unregisterAllMethods();
+//    }
 
     /**
      * Determine if a key/value pair with this key exists in
@@ -557,9 +571,7 @@ public class V8Object extends V8Value {
      * @return The receiver.
      */
     public V8Object registerJavaMethod(final JavaCallback callback, final String jsFunctionName) {
-        v8.checkThread();
-        checkReleased();
-        v8.registerCallback(callback, getHandle(), jsFunctionName);
+        explicitRegisterJavaMethod(callback, jsFunctionName);
         return this;
     }
 
@@ -573,9 +585,7 @@ public class V8Object extends V8Value {
      * @return The receiver.
      */
     public V8Object registerJavaMethod(final JavaVoidCallback callback, final String jsFunctionName) {
-        v8.checkThread();
-        checkReleased();
-        v8.registerVoidCallback(callback, getHandle(), jsFunctionName);
+        explicitRegisterJavaMethod(callback, jsFunctionName);
         return this;
     }
 
@@ -609,18 +619,94 @@ public class V8Object extends V8Value {
      * @return The receiver.
      */
     public V8Object registerJavaMethod(final Object object, final String methodName, final String jsFunctionName, final Class<?>[] parameterTypes, final boolean includeReceiver) {
+        explicitRegisterJavaMethod(object, methodName, jsFunctionName, parameterTypes, includeReceiver);
+        return this;
+    }
+
+    /**
+     * Register a Java method as a JavaScript function. When the JS Function is invoked
+     * the Java method will be called.
+     *
+     * @param callback The JavaCallback to call when the JSFunction is invoked.
+     * @param jsFunctionName The name of the JSFunction.
+     *
+     * @return ID of the created method
+     */
+    public long explicitRegisterJavaMethod(final JavaCallback callback, final String jsFunctionName) {
+        v8.checkThread();
+        checkReleased();
+        return v8.registerCallback(callback, getHandle(), jsFunctionName);
+    }
+
+    /**
+     * Register a void Java method as a JavaScript function. When the JS Function is invoked
+     * the Java method will be called.
+     *
+     * @param callback The JavaVoidCallback to call when the JSFunction is invoked.
+     * @param jsFunctionName The name of the JSFunction.
+     *
+     * @return ID of the created method
+     */
+    public long explicitRegisterJavaMethod(final JavaVoidCallback callback, final String jsFunctionName) {
+        v8.checkThread();
+        checkReleased();
+        return v8.registerVoidCallback(callback, getHandle(), jsFunctionName);
+    }
+
+    /**
+     * Register a Java method reflectively given it's name a signature.
+     *
+     * @param object The Java Object on which the method is defined.
+     * @param methodName The name of the method to register.
+     * @param jsFunctionName The name of the JavaScript function to register the
+     * method with.
+     * @param parameterTypes The parameter types of the method.
+     *
+     * @return ID of the created method
+     */
+    public long explicitRegisterJavaMethod(final Object object, final String methodName, final String jsFunctionName, final Class<?>[] parameterTypes) {
+        return explicitRegisterJavaMethod(object, methodName, jsFunctionName, parameterTypes, false);
+    }
+
+    /**
+     * Register a Java method reflectively given it's name a signature. The option to include
+     * the JS Object in the callback can be specified by setting includeReceiver true.
+     *
+     * @param object The Java Object on which the method is defined.
+     * @param methodName The name of the method to register.
+     * @param jsFunctionName The name of the JavaScript function to register the
+     * method with.
+     * @param parameterTypes The parameter types of the method.
+     * @param includeReceiver True if the first parameter should include the JS Object,
+     * false otherwise.
+     *
+     * @return ID of the created method
+     */
+    public long explicitRegisterJavaMethod(final Object object, final String methodName, final String jsFunctionName, final Class<?>[] parameterTypes, final boolean includeReceiver) {
         v8.checkThread();
         checkReleased();
         try {
             Method method = object.getClass().getMethod(methodName, parameterTypes);
             method.setAccessible(true);
-            v8.registerCallback(object, method, getHandle(), jsFunctionName, includeReceiver);
+            long methodId = v8.registerCallback(object, method, getHandle(), jsFunctionName, includeReceiver);
+            functionIds.add(methodId);
+            return methodId;
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException(e);
         } catch (SecurityException e) {
             throw new IllegalStateException(e);
         }
-        return this;
+    }
+
+    public boolean unregisterJavaMethod(long methodId) {
+        boolean status = functionIds.remove(methodId);
+        return status && v8.unregisterMethodDescriptor(methodId);
+    }
+
+    public void unregisterAllMethods() {
+        for (long id : functionIds) {
+            unregisterJavaMethod(id);
+        }
     }
 
     /*

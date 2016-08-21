@@ -1,7 +1,6 @@
-APP_ABI := armeabi armeabi-v7a x86
-APP_PLATFORM := android-15
-#APP_STL := gnustl_shared
-#APP_STL := stlport_static 
-APP_STL=c++_static
-#APP_MODULES := v8_base
-#APP_MODULES := v8_nosnapshot
+NDK_TOOLCHAIN_VERSION=4.9
+APP_ABI := armeabi armeabi-v7a arm64-v8a
+#APP_ABI := armeabi-v7a 
+APP_PLATFORM := android-21
+APP_STL := gnustl_shared
+APP_CPPFLAGS += -fexceptions -frtti

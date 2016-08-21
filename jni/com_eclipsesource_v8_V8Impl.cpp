@@ -10,6 +10,7 @@
 ******************************************************************************/
 #include <jni.h>
 #include <libplatform/libplatform.h>
+//#include "v8-include/libplatform/libplatform.h"
 #include <iostream>
 #include <v8.h>
 #include <string.h>
@@ -368,7 +369,8 @@ JNIEXPORT void JNICALL Java_com_eclipsesource_v8_V8__1startNodeJS
   rt->uvLoop = new uv_loop_t();
   uv_loop_init(rt->uvLoop);
   isolate->GetCurrentContext();
-  node::Environment* environment = node::CreateEnvironment(isolate, rt->uvLoop, context, argc, argv, 0, 0);
+  node::IsolateData* isolateData = node::CreateIsolateData(isolate, rt->uvLoop);
+  node::Environment* environment = node::CreateEnvironment(isolateData, context, argc, argv, 0, 0);
   node::LoadEnvironment(environment);
   rt->nodeEnvironment = environment;
   rt->running = true;
